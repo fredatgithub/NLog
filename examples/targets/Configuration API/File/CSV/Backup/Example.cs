@@ -25,7 +25,5 @@ class Example
         Logger logger = LogManager.GetLogger("Example");
         logger.Debug("log message");
         logger.Debug("Message with \"quotes\" and \nnew line characters.");
-        Console.WriteLine("press any key to exit:");
-        Console.ReadKey();
     }
 }
