@@ -117,10 +117,7 @@ namespace NLog.Config
             catch (Exception ex)
             {
                 InternalLogger.Error(ex, "Failed loading from config file location: {0}", configFile);
-                if (logFactory.ThrowConfigExceptions ?? logFactory.ThrowExceptions)
-                    throw;
-
-                if (ex.MustBeRethrown())
+                if ((logFactory.ThrowConfigExceptions ?? logFactory.ThrowExceptions) || ex.MustBeRethrown())
                     throw;
             }
 
@@ -273,7 +270,7 @@ namespace NLog.Config
                 yield return nlogAssemblyLocation + ".nlog";
         }
 
-        private string LookupNLogAssemblyLocation()
+        private static string LookupNLogAssemblyLocation()
         {
 #if !NETSTANDARD1_3
             var nlogAssembly = typeof(LogFactory).GetAssembly();

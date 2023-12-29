@@ -103,6 +103,7 @@ namespace NLog.Targets
         /// </summary>
         /// <docgen category='Performance Tuning Options' order='10' />
         [Obsolete("Temporary workaround for broken Layout Renderers that are not threadsafe. Marked obsolete on NLog 5.0")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public bool LayoutWithLock { get => _layoutWithLock ?? false; set => _layoutWithLock = value; }
         internal bool? _layoutWithLock;
 
@@ -237,9 +238,6 @@ namespace NLog.Targets
 
         private void PrecalculateVolatileLayoutsConcurrent(LogEventInfo logEvent)
         {
-            if (!IsInitialized)
-                return;
-
             if (_precalculateStringBuilderPool is null)
             {
                 System.Threading.Interlocked.CompareExchange(ref _precalculateStringBuilderPool, new StringBuilderPool(Environment.ProcessorCount * 2), null);
@@ -259,9 +257,6 @@ namespace NLog.Targets
         {
             lock (SyncRoot)
             {
-                if (!_isInitialized)
-                    return;
-
                 using (var targetBuilder = ReusableLayoutBuilder.Allocate())
                 {
                     foreach (Layout layout in _allLayouts)
@@ -524,13 +519,14 @@ namespace NLog.Targets
 
         private void FindAllLayouts()
         {
-            _allLayouts = ObjectGraphScanner.FindReachableObjects<Layout>(ConfigurationItemFactory.Default, false, this).ToArray();
-            InternalLogger.Trace("{0} has {1} layouts", this, _allLayouts.Length);
-            _allLayoutsAreThreadAgnostic = _allLayouts.All(layout => layout.ThreadAgnostic);
-            _oneLayoutIsMutableUnsafe = _allLayoutsAreThreadAgnostic && _allLayouts.Any(layout => layout.MutableUnsafe);
+            var allLayouts = ObjectGraphScanner.FindReachableObjects<Layout>(ConfigurationItemFactory.Default, false, this);
+            InternalLogger.Trace("{0} has {1} layouts", this, allLayouts.Count);
+            _allLayoutsAreThreadAgnostic = allLayouts.All(layout => layout.ThreadAgnostic);
+            _oneLayoutIsMutableUnsafe = _allLayoutsAreThreadAgnostic && allLayouts.Any(layout => layout.MutableUnsafe);
 
-            var result = _allLayouts.Aggregate(StackTraceUsage.None, (agg, layout) => agg | layout.StackTraceUsage);
+            var result = allLayouts.Aggregate(StackTraceUsage.None, (agg, layout) => agg | layout.StackTraceUsage);
             StackTraceUsage = result | ((this as IUsesStackTrace)?.StackTraceUsage ?? StackTraceUsage.None);
+            _allLayouts = allLayouts.Where(l => !l.ThreadAgnostic || l.MutableUnsafe || !(l is SimpleLayout)).Distinct(SingleItemOptimizedHashSet<Layout>.ReferenceEqualityComparer.Default).ToArray();
             _scannedForLayouts = true;
         }
 
@@ -775,12 +771,15 @@ namespace NLog.Targets
         }
 
         /// <summary>
+        /// Obsolete and replaced by <see cref="LogManager.Setup()"/> with NLog v5.2.
+        /// 
         /// Register a custom Target.
         /// </summary>
         /// <remarks>Short-cut for registering to default <see cref="ConfigurationItemFactory"/></remarks>
         /// <typeparam name="T">Type of the Target.</typeparam>
         /// <param name="name">The target type-alias for use in NLog configuration</param>
         [Obsolete("Instead use LogManager.Setup().SetupExtensions(). Marked obsolete with NLog v5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Register<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] T>(string name)
             where T : Target
         {
@@ -789,12 +788,15 @@ namespace NLog.Targets
         }
 
         /// <summary>
+        /// Obsolete and replaced by <see cref="LogManager.Setup()"/> with NLog v5.2.
+        /// 
         /// Register a custom Target.
         /// </summary>
         /// <remarks>Short-cut for registering to default <see cref="ConfigurationItemFactory"/></remarks>
         /// <param name="targetType">Type of the Target.</param>
         /// <param name="name">The target type-alias for use in NLog configuration</param>
         [Obsolete("Instead use LogManager.Setup().SetupExtensions(). Marked obsolete with NLog v5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Register(string name, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)] Type targetType)
         {
             ConfigurationItemFactory.Default.GetTargetFactory().RegisterDefinition(name, targetType);

@@ -51,6 +51,8 @@ namespace NLog.Config
         public static void RegisterTypes(ConfigurationItemFactory factory)
         {
             #pragma warning disable CS0618 // Type or member is obsolete
+            factory.RegisterTypeProperties<NLog.Targets.TargetWithContext.TargetWithContextLayout>(() => null);
+            factory.RegisterTypeProperties<NLog.Layouts.CsvLayout.CsvHeaderLayout>(() => null);
 <#
     var types  = typeof(NLog.LogFactory).Assembly.GetTypes().OrderBy(t => t.ToString());
 
@@ -89,7 +91,7 @@ namespace NLog.Config
 
     foreach(var type in types)
     {
-        if (type.IsAbstract || type.IsPrimitive || !type.IsPublic)
+        if (type.IsAbstract || type.IsPrimitive || !type.IsClass || type.IsNested)
             continue;
 
         if (netFramework.Contains(type.ToString()))
@@ -111,7 +113,17 @@ namespace NLog.Config
 <#
         }
 
-        if (typeof(NLog.Targets.Target).IsAssignableFrom(type))
+        if (!type.IsPublic)
+        {
+            var configAttribute = type.GetCustomAttributes<NLog.Config.NLogConfigurationItemAttribute>(true);
+            if (configAttribute?.Any() == true)
+            {
+#>
+            factory.RegisterTypeProperties<<#= type #>>(() => null);
+<#
+            }
+        }
+        else if (typeof(NLog.Targets.Target).IsAssignableFrom(type))
         {
             var targetAttributes = type.GetCustomAttributes<NLog.Targets.TargetAttribute>(false);
             foreach (var targetAlias in targetAttributes)
@@ -177,7 +189,7 @@ namespace NLog.Config
         }
         else
         {
-            var configAttribute = type.GetCustomAttributes<NLog.Config.NLogConfigurationItemAttribute>(false);
+            var configAttribute = type.GetCustomAttributes<NLog.Config.NLogConfigurationItemAttribute>(true);
             if (configAttribute?.Any() == true)
             {
 #>
@@ -194,6 +206,19 @@ namespace NLog.Config
         }
     }
 #>
+            factory.ConditionMethodFactory.RegisterOneParameter("length", (logEvent,arg1) => NLog.Conditions.ConditionMethods.Length(arg1?.ToString()));
+            factory.ConditionMethodFactory.RegisterTwoParameters("equals", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.Equals2(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterTwoParameters("strequals", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.Equals2(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("strequals", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.Equals2(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("contains", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.Contains(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("contains", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.Contains(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("starts-with", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.StartsWith(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("starts-with", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.StartsWith(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("ends-with", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.EndsWith(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("ends-with", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.EndsWith(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("regex-matches", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.RegexMatches(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("regex-matches", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.RegexMatches(arg1?.ToString(), arg2?.ToString(), arg3?.ToString() ?? string.Empty));
+
             #pragma warning restore CS0618 // Type or member is obsolete
         }
     }

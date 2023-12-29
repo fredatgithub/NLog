@@ -538,6 +538,9 @@ namespace NLog.UnitTests.Config
 </nlog> ").LogFactory;
 
                 logFactory.GetLogger("TestLogger").Info("DefaultFileTargetParametersTests.DontThrowExceptionWhenArchiveEverySetByDefaultParameters is true");
+
+                Assert.NotNull(logFactory.Configuration);
+                Assert.Single(logFactory.Configuration.AllTargets);
             }
             finally
             {
@@ -564,6 +567,8 @@ namespace NLog.UnitTests.Config
 </nlog>").LogFactory;
 
                 logFactory.GetLogger(nameof(DontThrowExceptionsWhenMissingRequiredParameters)).Info("Test");
+
+                Assert.NotNull(logFactory.Configuration);
             }
         }
 
@@ -588,6 +593,70 @@ namespace NLog.UnitTests.Config
                 logFactory.GetLogger(nameof(DontThrowExceptionsWhenMissingTargetName)).Info("Test");
                 AssertDebugLastMessage("goodtarget", "Test", logFactory);
             }
+        }
+
+        [Fact]
+        public void RequiredDataTypesNullableTest()
+        {
+            var c = new LogFactory().Setup().LoadConfigurationFromXml(@"
+            <nlog throwExceptions='true'>
+                <extensions>
+                    <add type='" + typeof(MyRequiredTarget).AssemblyQualifiedName + @"' />
+                </extensions>
+
+                <targets>
+                    <target type='MyRequiredTarget' name='myTarget'
+                        stringProperty='foobar'
+                        enumProperty='Value3'
+/>
+                </targets>
+            </nlog>").LogFactory.Configuration;
+
+            var myTarget = c.FindTargetByName("myTarget") as MyRequiredTarget;
+            Assert.NotNull(myTarget);
+
+            var missingStringValue = Assert.Throws<NLogConfigurationException>(() => new LogFactory().Setup().LoadConfigurationFromXml(@"
+            <nlog throwExceptions='true'>
+                <extensions>
+                    <add type='" + typeof(MyRequiredTarget).AssemblyQualifiedName + @"' />
+                </extensions>
+
+                <targets>
+                    <target type='MyRequiredTarget' name='myTarget'
+                        enumProperty='Value3'
+                    />
+                </targets>
+            </nlog>"));
+            Assert.Contains(nameof(MyRequiredTarget.StringProperty), missingStringValue.Message);
+
+            var missingEnumValue = Assert.Throws<NLogConfigurationException>(() => new LogFactory().Setup().LoadConfigurationFromXml(@"
+            <nlog throwExceptions='true'>
+                <extensions>
+                    <add type='" + typeof(MyRequiredTarget).AssemblyQualifiedName + @"' />
+                </extensions>
+
+                <targets>
+                    <target type='MyRequiredTarget' name='myTarget'
+                        stringProperty='foobar'
+                    />
+                </targets>
+            </nlog>"));
+            Assert.Contains(nameof(MyRequiredTarget.EnumProperty), missingEnumValue.Message);
+
+            var emptyEnumValue = Assert.Throws<NLogConfigurationException>(() => new LogFactory().Setup().LoadConfigurationFromXml(@"
+            <nlog throwExceptions='true'>
+                <extensions>
+                    <add type='" + typeof(MyRequiredTarget).AssemblyQualifiedName + @"' />
+                </extensions>
+
+                <targets>
+                    <target type='MyRequiredTarget' name='myTarget'
+                        enumProperty=''
+                        stringProperty='foobar'
+                    />
+                </targets>
+            </nlog>"));
+            Assert.Contains(nameof(MyRequiredTarget.EnumProperty), emptyEnumValue.Message);
         }
 
         [Fact]
@@ -781,6 +850,15 @@ namespace NLog.UnitTests.Config
             {
                 Name = name;
             }
+        }
+
+        [Target("MyRequiredTarget")]
+        public class MyRequiredTarget : Target
+        {
+            [RequiredParameter]
+            public string StringProperty { get; set; }
+            [RequiredParameter]
+            public MyEnum? EnumProperty { get; set; }
         }
 
         public enum MyEnum

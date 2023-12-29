@@ -48,10 +48,10 @@ namespace NLog.UnitTests.Config
 
     public class ExtensionTests : NLogTestBase
     {
-        private string extensionAssemblyName1 = "SampleExtensions";
-        private string extensionAssemblyFullPath1 = Path.GetFullPath("SampleExtensions.dll");
+        private readonly static string extensionAssemblyName1 = "SampleExtensions";
+        private readonly static string extensionAssemblyFullPath1 = Path.GetFullPath("SampleExtensions.dll");
 
-        private string GetExtensionAssemblyFullPath()
+        private static string GetExtensionAssemblyFullPath()
         {
 #if NETSTANDARD
             Assert.NotNull(typeof(FooLayout));
@@ -120,6 +120,54 @@ namespace NLog.UnitTests.Config
         <target name='d1' type='Debug' layout='${foo}' />
         <target name='d2' type='Debug'>
             <layout type='FooLayout' x='1'>
+            </layout>
+        </target>
+    </targets>
+
+    <rules>
+      <logger name='*' writeTo='t'>
+        <filters>
+           <whenFoo x='44' action='Ignore' />
+           <when condition='myrandom(10)==3' action='Log' />
+        </filters>
+      </logger>
+    </rules>
+</nlog>").LogFactory.Configuration;
+
+            Target myTarget = configuration.FindTargetByName("t");
+            Assert.Equal("MyExtensionNamespace.MyTarget", myTarget.GetType().FullName);
+
+            var d1Target = (DebugTarget)configuration.FindTargetByName("d1");
+            var layout = d1Target.Layout as SimpleLayout;
+            Assert.NotNull(layout);
+            Assert.Single(layout.Renderers);
+            Assert.Equal("MyExtensionNamespace.FooLayoutRenderer", layout.Renderers[0].GetType().FullName);
+
+            var d2Target = (DebugTarget)configuration.FindTargetByName("d2");
+            Assert.Equal("MyExtensionNamespace.FooLayout", d2Target.Layout.GetType().FullName);
+
+            Assert.Equal(2, configuration.LoggingRules[0].Filters.Count);
+            Assert.Equal("MyExtensionNamespace.WhenFooFilter", configuration.LoggingRules[0].Filters[0].GetType().FullName);
+            var cbf = configuration.LoggingRules[0].Filters[1] as ConditionBasedFilter;
+            Assert.NotNull(cbf);
+            Assert.Equal("(myrandom(10) == 3)", cbf.Condition.ToString());
+        }
+
+        [Fact]
+        public void ExtensionWithPrefixLoadTwiceTest()
+        {
+            var configuration = new LogFactory().Setup().SetupExtensions(ext => ext.RegisterAssembly(extensionAssemblyName1))
+                .LoadConfigurationFromXml(@"
+<nlog throwExceptions='true'>
+    <extensions>
+        <add assembly='" + extensionAssemblyName1 + @"' prefix='twice' />
+    </extensions>
+
+    <targets>
+        <target name='t' type='twice.MyTarget' />
+        <target name='d1' type='Debug' layout='${foo}' />
+        <target name='d2' type='Debug'>
+            <layout type='twice.FooLayout' x='1'>
             </layout>
         </target>
     </targets>
@@ -347,7 +395,8 @@ namespace NLog.UnitTests.Config
                 <add assembly='NLog'/>
 </extensions>
 </nlog>";
-            XmlLoggingConfiguration.CreateFromXmlString(configXml);
+            var result = XmlLoggingConfiguration.CreateFromXmlString(configXml);
+            Assert.NotNull(result);
         }
 
         [Fact]
@@ -359,7 +408,8 @@ namespace NLog.UnitTests.Config
         <add assembly='some_assembly_that_doesnt_exist'/>
     </extensions>
 </nlog>";
-            XmlLoggingConfiguration.CreateFromXmlString(configXml);
+            var result = XmlLoggingConfiguration.CreateFromXmlString(configXml);
+            Assert.NotNull(result);
         }
 
         [Fact]
@@ -371,7 +421,8 @@ namespace NLog.UnitTests.Config
                 <add assemblyfile='some_file_that_doesnt_exist'/>
 </extensions>
 </nlog>";
-            XmlLoggingConfiguration.CreateFromXmlString(configXml);
+            var result = XmlLoggingConfiguration.CreateFromXmlString(configXml);
+            Assert.NotNull(result);
         }
 
         [Fact]
@@ -631,9 +682,9 @@ namespace NLog.UnitTests.Config
             var testsDirectory = configurationDirectory.Parent.Parent.Parent;
             var manuallyLoadedAssemblyPath = Path.Combine(testsDirectory.FullName, "ManuallyLoadedExtension", "bin", configurationDirectory.Name,
 #if NETSTANDARD
-                    "netstandard2.0",
+                "netstandard2.0",
 #elif NET35 || NET40 || NET45
-                    "net461",
+                "net461",
 #else
                 nlogDirectory.Name,
 #endif

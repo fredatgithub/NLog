@@ -97,7 +97,7 @@ namespace NLog.UnitTests.Config
             }
         }
 
-        private void AssertMessageFormattedWithCulture(LogFactory logFactory, CultureInfo culture, string formatString, params object[] parameters)
+        private static void AssertMessageFormattedWithCulture(LogFactory logFactory, CultureInfo culture, string formatString, params object[] parameters)
         {
             var expected = string.Format(culture, formatString, parameters);
             var logger = logFactory.GetLogger("test");
@@ -151,7 +151,7 @@ namespace NLog.UnitTests.Config
             renderer2.Format = "d";
             output = renderer2.Render(logEventInfo);
             Assert.True(output.Length >= 1);
-            Assert.True("012345678".IndexOf(output[0]) > 0);
+            Assert.Contains(output[0], "012345678");
         }
 
         [Fact]

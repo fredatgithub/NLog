@@ -43,7 +43,7 @@ namespace NLog.UnitTests.Common
     using NLog.Time;
     using Xunit;
 
-    public class InternalLoggerTests : NLogTestBase, IDisposable
+    public sealed class InternalLoggerTests : NLogTestBase, IDisposable
     {
         /// <summary>
         /// Test the return values of all Is[Level]Enabled() methods.
@@ -694,9 +694,9 @@ namespace NLog.UnitTests.Common
         [InlineData("off", false)]
         public void CreateDirectoriesIfNeededTests(string rawLogLevel, bool shouldCreateDirectory)
         {
-            var tempPath = Path.GetTempPath();
+            var tempDir = Path.GetTempPath();
             var tempFileName = Path.GetRandomFileName();
-            var randomSubDirectory = Path.Combine(tempPath, Path.GetRandomFileName());
+            var randomSubDirectory = Path.Combine(tempDir, Path.GetRandomFileName());
             string tempFile = Path.Combine(randomSubDirectory, tempFileName);
 
             try

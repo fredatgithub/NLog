@@ -59,7 +59,8 @@ namespace NLog.UnitTests.Layouts
         [Fact]
         public void UnclosedTest()
         {
-            new SimpleLayout("${message");
+            var l = new SimpleLayout("${message");
+            Assert.Single(l.Renderers);
         }
 
         [Fact]
@@ -952,12 +953,12 @@ namespace NLog.UnitTests.Layouts
                 AppendFormattable(builder, HashSetNumber);
             }
 
-            private void Append<T>(StringBuilder builder, IEnumerable<T> items)
+            private static void Append<T>(StringBuilder builder, IEnumerable<T> items)
             {
                 if (items != null) builder.Append(string.Join("-", items.ToArray()));
             }
 
-            private void AppendFormattable<T>(StringBuilder builder, IEnumerable<T> items)
+            private static void AppendFormattable<T>(StringBuilder builder, IEnumerable<T> items)
                 where T : IFormattable
             {
                 if (items != null) builder.Append(string.Join("-", items.Select(it => it.ToString(null, CultureInfo.InvariantCulture)).ToArray()));

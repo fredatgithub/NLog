@@ -1436,7 +1436,7 @@ Dispose()
             }
         }
 
-        private string GetSQLiteDbProvider()
+        private static string GetSQLiteDbProvider()
         {
 #if MONO
             return "Mono.Data.Sqlite.SqliteConnection, Mono.Data.Sqlite";
@@ -1619,7 +1619,7 @@ INSERT INTO NLogSqlLiteTestAppNames(Id, Name) VALUES (1, @appName);"">
             }
         }
 
-        private LogFactory SetupSqliteConfigWithInvalidInstallCommand(string databaseName)
+        private static LogFactory SetupSqliteConfigWithInvalidInstallCommand(string databaseName)
         {
             var nlogXmlConfig = @"
             <nlog xmlns='http://www.nlog-project.org/schemas/NLog.xsd'
@@ -1981,7 +1981,7 @@ INSERT INTO NLogSqlLiteTestAppNames(Id, Name) VALUES (1, @appName);"">
             return MockDbConnection.LastConnectionString;
         }
 
-        public class MockDbConnection : IDbConnection
+        public sealed class MockDbConnection : IDbConnection
         {
             public static string Log { get; private set; }
             public static string LastConnectionString { get; private set; }
@@ -2343,7 +2343,7 @@ INSERT INTO NLogSqlLiteTestAppNames(Id, Name) VALUES (1, @appName);"">
             }
         }
 
-        public class MockDbTransaction : IDbTransaction
+        public sealed class MockDbTransaction : IDbTransaction
         {
             public IDbConnection Connection { get; private set; }
 

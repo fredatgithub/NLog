@@ -170,31 +170,31 @@ namespace NLog.Config
             return serviceRepository;
         }
 
-        internal static ServiceRepository RegisterMessageTemplateParser(this ServiceRepository serviceRepository, bool? messageTemplateParser)
+        internal static ServiceRepository ParseMessageTemplates(this ServiceRepository serviceRepository, bool? enable)
         {
-            if (messageTemplateParser == false)
+            if (enable == true)
             {
-                NLog.Common.InternalLogger.Info("Message Template String Format always enabled");
-                serviceRepository.RegisterSingleton<ILogMessageFormatter>(LogMessageStringFormatter.Default);
-            }
-            else if (messageTemplateParser == true)
-            {
-                NLog.Common.InternalLogger.Info("Message Template Format always enabled");
+                NLog.Common.InternalLogger.Debug("Message Template Format always enabled");
                 serviceRepository.RegisterSingleton<ILogMessageFormatter>(new LogMessageTemplateFormatter(serviceRepository, true, false));
+            }
+            else if (enable == false)
+            {
+                NLog.Common.InternalLogger.Debug("Message Template String Format always enabled");
+                serviceRepository.RegisterSingleton<ILogMessageFormatter>(LogMessageStringFormatter.Default);
             }
             else
             {
                 //null = auto
-                NLog.Common.InternalLogger.Info("Message Template Auto Format enabled");
+                NLog.Common.InternalLogger.Debug("Message Template Auto Format enabled");
                 serviceRepository.RegisterSingleton<ILogMessageFormatter>(new LogMessageTemplateFormatter(serviceRepository, false, false));
             }
             return serviceRepository;
         }
 
-        internal static bool? ResolveMessageTemplateParser(this ServiceRepository serviceRepository)
+        internal static bool? ResolveParseMessageTemplates(this ServiceRepository serviceRepository)
         {
             var messageFormatter = serviceRepository.GetService<ILogMessageFormatter>();
-            return messageFormatter?.MessageTemplateParser;
+            return messageFormatter?.EnableMessageTemplateParser;
         }
 
         internal static ServiceRepository RegisterDefaults(this ServiceRepository serviceRepository)

@@ -52,42 +52,165 @@ namespace NLog.Config
 
         public void LoadAssemblyFromName(ConfigurationItemFactory factory, string assemblyName, string itemNamePrefix)
         {
-            var loadedAssemblies = new HashSet<Assembly>();
-            foreach (var itemType in factory.ItemTypes)
+            if (SkipAlreadyLoadedAssembly(factory, assemblyName, itemNamePrefix))
             {
-                loadedAssemblies.Add(itemType.GetAssembly());
+                InternalLogger.Debug("Skipped already loaded assembly name: {0}", assemblyName);
+                return;
             }
 
-            if (loadedAssemblies.Count > 1)
-            {
-                foreach (var assembly in loadedAssemblies)
-                {
-                    if (string.Equals(assembly.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        InternalLogger.Debug("Skipped Auto loading assembly name: {0}", assemblyName);
-                        return;
-                    }
-                }
-            }
-
-            InternalLogger.Info("Auto loading assembly name: {0}", assemblyName);
+            InternalLogger.Info("Loading assembly name: {0}{1}", assemblyName, string.IsNullOrEmpty(itemNamePrefix) ? "" : $" (Prefix={itemNamePrefix})");
             Assembly extensionAssembly = LoadAssemblyFromName(assemblyName);
             InternalLogger.LogAssemblyVersion(extensionAssembly);
             factory.RegisterItemsFromAssembly(extensionAssembly, itemNamePrefix);
-            InternalLogger.Info("Auto loading assembly name: {0} succeeded!", assemblyName);
+            InternalLogger.Debug("Loading assembly name: {0} succeeded!", assemblyName);
         }
 
-        public void LoadAssemblyFromPath(ConfigurationItemFactory factory, string assemblyPath, string baseDirectory, string itemNamePrefix)
+        private static bool SkipAlreadyLoadedAssembly(ConfigurationItemFactory factory, string assemblyName, string itemNamePrefix)
         {
-#if !NETSTANDARD1_3
-            InternalLogger.Info("Auto loading assembly file: {0}", assemblyPath);
-            var extensionAssembly = LoadAssemblyFromPath(assemblyPath, baseDirectory);
+            try
+            {
+                var loadedAssemblies = ResolveLoadedAssemblyTypes(factory);
+                if (loadedAssemblies.Count > 1)
+                {
+                    foreach (var assembly in loadedAssemblies)
+                    {
+                        if (string.Equals(assembly.Key.GetName()?.Name, assemblyName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (IsNLogItemTypeAlreadyRegistered(factory, assembly.Value, itemNamePrefix))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (ex.MustBeRethrown())
+                    throw;
+
+                InternalLogger.Warn(ex, "Failed checking loading assembly name: {0}", assemblyName);
+            }
+
+            return false;
+        }
+
+        private static Dictionary<Assembly, Type> ResolveLoadedAssemblyTypes(ConfigurationItemFactory factory)
+        {
+            var loadedAssemblies = new Dictionary<Assembly, Type>();
+            foreach (var itemType in factory.ItemTypes)
+            {
+                var assembly = itemType.GetAssembly();
+                if (assembly is null)
+                    continue;
+
+                if (loadedAssemblies.TryGetValue(assembly, out var firstItemType))
+                {
+                    if (firstItemType is null && IsNLogConfigurationItemType(itemType))
+                    {
+                        loadedAssemblies[assembly] = itemType;
+                    }
+                }
+                else
+                {
+                    loadedAssemblies.Add(assembly, IsNLogConfigurationItemType(itemType) ? itemType : null);
+                }
+            }
+
+            return loadedAssemblies;
+        }
+
+        private static bool IsNLogConfigurationItemType(Type itemType)
+        {
+            if (itemType is null)
+            {
+                return false;
+            }
+            else if (typeof(Layouts.Layout).IsAssignableFrom(itemType))
+            {
+                var nameAttribute = itemType.GetFirstCustomAttribute<Layouts.LayoutAttribute>();
+                return !string.IsNullOrEmpty(nameAttribute?.Name);
+            }
+            else if (typeof(LayoutRenderers.LayoutRenderer).IsAssignableFrom(itemType))
+            {
+                var nameAttribute = itemType.GetFirstCustomAttribute<LayoutRenderers.LayoutRendererAttribute>();
+                return !string.IsNullOrEmpty(nameAttribute?.Name);
+            }
+            else if (typeof(Targets.Target).IsAssignableFrom(itemType))
+            {
+                var nameAttribute = itemType.GetFirstCustomAttribute<Targets.TargetAttribute>();
+                return !string.IsNullOrEmpty(nameAttribute?.Name);
+            }
+            else if (typeof(NLog.Filters.Filter).IsAssignableFrom(itemType))
+            {
+                var nameAttribute = itemType.GetFirstCustomAttribute<Filters.FilterAttribute>();
+                return !string.IsNullOrEmpty(nameAttribute?.Name);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private static bool IsNLogItemTypeAlreadyRegistered(ConfigurationItemFactory factory, Type itemType, string itemNamePrefix)
+        {
+            if (itemType is null)
+            {
+                return false;
+            }
+            else if (IsNLogItemTypeAlreadyRegistered<IFactory<Layouts.Layout>, Layouts.Layout, Layouts.LayoutAttribute>(factory.LayoutFactory, itemType, itemNamePrefix))
+            {
+                return true;
+            }
+            else if (IsNLogItemTypeAlreadyRegistered<IFactory<LayoutRenderers.LayoutRenderer>, LayoutRenderers.LayoutRenderer, LayoutRenderers.LayoutRendererAttribute>(factory.LayoutRendererFactory, itemType, itemNamePrefix))
+            {
+                return true;
+            }
+            else if (IsNLogItemTypeAlreadyRegistered<IFactory<Targets.Target>, Targets.Target, Targets.TargetAttribute>(factory.TargetFactory, itemType, itemNamePrefix))
+            {
+                return true;
+            }
+            else if (IsNLogItemTypeAlreadyRegistered<IFactory<Filters.Filter>, Filters.Filter, Filters.FilterAttribute>(factory.FilterFactory, itemType, itemNamePrefix))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsNLogItemTypeAlreadyRegistered<TFactory, TBaseType, TAttribute>(TFactory factory, Type itemType, string itemNamePrefix)
+            where TAttribute : NameBaseAttribute
+            where TFactory : IFactory<TBaseType>
+            where TBaseType : class
+        {
+            if (typeof(TBaseType).IsAssignableFrom(itemType))
+            {
+                var nameAttribute = itemType.GetFirstCustomAttribute<TAttribute>();
+                if (!string.IsNullOrEmpty(nameAttribute?.Name))
+                {
+                    var typeAlias = string.IsNullOrEmpty(itemNamePrefix) ? nameAttribute.Name : itemNamePrefix + nameAttribute.Name;
+                    return factory.TryCreateInstance(typeAlias, out var _);
+                }
+            }
+            return false;
+        }
+
+        public void LoadAssemblyFromPath(ConfigurationItemFactory factory, string assemblyFileName, string baseDirectory, string itemNamePrefix)
+        {
+            RegisterAssemblyFromPath(factory, assemblyFileName, baseDirectory, itemNamePrefix);
+        }
+
+        private static Assembly RegisterAssemblyFromPath(ConfigurationItemFactory factory, string assemblyFileName, string baseDirectory = null, string itemNamePrefix = null)
+        {
+            InternalLogger.Info("Loading assembly file: {0}{1}", assemblyFileName, string.IsNullOrEmpty(itemNamePrefix) ? "" : $" (Prefix={itemNamePrefix})");
+            var extensionAssembly = LoadAssemblyFromPath(assemblyFileName, baseDirectory);
+            if (extensionAssembly is null)
+                return null;
+            
             InternalLogger.LogAssemblyVersion(extensionAssembly);
             factory.RegisterItemsFromAssembly(extensionAssembly, itemNamePrefix);
-            InternalLogger.Info("Auto loading assembly file: {0} succeeded!", assemblyPath);
-#else
-            // Nothing to do for Sonar Cube
-#endif
+            InternalLogger.Debug("Loading assembly file: {0} succeeded!", assemblyFileName);
+            return extensionAssembly;
         }
 
         public void ScanForAutoLoadExtensions(ConfigurationItemFactory factory)
@@ -151,16 +274,11 @@ namespace NLog.Config
 
             foreach (var extensionDll in extensionDlls)
             {
-                InternalLogger.Info("Auto loading assembly file: {0}", extensionDll);
-
                 try
                 {
-                    var extensionAssembly = LoadAssemblyFromPath(extensionDll);
-                    InternalLogger.LogAssemblyVersion(extensionAssembly);
-                    factory.RegisterItemsFromAssembly(extensionAssembly);
-                    alreadyRegistered.Add(extensionAssembly.FullName);
-
-                    InternalLogger.Info("Auto loading assembly file: {0} succeeded!", extensionDll);
+                    var extensionAssembly = RegisterAssemblyFromPath(factory, extensionDll);
+                    if (extensionAssembly != null)
+                        alreadyRegistered.Add(extensionAssembly.FullName);
                 }
                 catch (Exception ex)
                 {
@@ -295,7 +413,6 @@ namespace NLog.Config
         }
 #endif
 
-#if !NETSTANDARD1_3
         /// <summary>
         /// Load from url
         /// </summary>
@@ -306,9 +423,16 @@ namespace NLog.Config
         [Obsolete("Instead use RegisterType<T>, as dynamic Assembly loading will be moved out. Marked obsolete with NLog v5.2")]
         private static Assembly LoadAssemblyFromPath(string assemblyFileName, string baseDirectory = null)
         {
-            string fullFileName = baseDirectory is null ? assemblyFileName : System.IO.Path.Combine(baseDirectory, assemblyFileName);
+#if NETSTANDARD1_3
+            return null;
+#else
+            string fullFileName = assemblyFileName;
+            if (!string.IsNullOrEmpty(baseDirectory))
+            {
+                fullFileName = System.IO.Path.Combine(baseDirectory, assemblyFileName);
+                InternalLogger.Debug("Loading assembly file: {0}", fullFileName);
+            }
 
-            InternalLogger.Info("Loading assembly file: {0}", fullFileName);
 #if NETSTANDARD1_5
             try
             {
@@ -325,16 +449,15 @@ namespace NLog.Config
             Assembly asm = Assembly.LoadFrom(fullFileName);
             return asm;
 #endif
-        }
+
 #endif
+        }
 
         /// <summary>
         /// Load from url
         /// </summary>
         private static Assembly LoadAssemblyFromName(string assemblyName)
         {
-            InternalLogger.Info("Loading assembly: {0}", assemblyName);
-
 #if !NETSTANDARD1_3 && !NETSTANDARD1_5
             try
             {
@@ -364,6 +487,8 @@ namespace NLog.Config
 #if !NETSTANDARD1_3 && !NETSTANDARD1_5
         private static bool IsAssemblyMatch(AssemblyName expected, AssemblyName actual)
         {
+            if (expected is null || actual is null)
+                return false;
             if (expected.Name != actual.Name)
                 return false;
             if (expected.Version != null && expected.Version != actual.Version)
@@ -382,7 +507,7 @@ namespace NLog.Config
     {
         void ScanForAutoLoadExtensions(ConfigurationItemFactory factory);
 
-        void LoadAssemblyFromPath(ConfigurationItemFactory factory, string assemblyPath, string baseDirectory, string itemNamePrefix);
+        void LoadAssemblyFromPath(ConfigurationItemFactory factory, string assemblyFileName, string baseDirectory, string itemNamePrefix);
 
         void LoadAssemblyFromName(ConfigurationItemFactory factory, string assemblyName, string itemNamePrefix);
 

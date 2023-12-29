@@ -39,6 +39,7 @@ namespace NLog.UnitTests.Config
     using System.Text;
     using NLog.Config;
     using NLog.Filters;
+    using NLog.Internal;
     using Xunit;
 
     public class RuleConfigurationTests : NLogTestBase
@@ -499,7 +500,7 @@ namespace NLog.UnitTests.Config
                 </rules>
             </nlog>").LogFactory;
 
-            var loggerConfig = logFactory.BuildLoggerConfiguration("AAA", logFactory.Configuration);
+            var loggerConfig = logFactory.BuildLoggerConfiguration("AAA", logFactory.Configuration?.GetLoggingRulesThreadSafe());
             var targets = loggerConfig[LogLevel.Warn.Ordinal];
             Assert.Equal("d1", targets.Target.Name);
             Assert.Equal("d2", targets.NextInChain.Target.Name);
@@ -1002,27 +1003,27 @@ namespace NLog.UnitTests.Config
 
         public static IEnumerable<object[]> LoggingRule_MinMaxLayout_ParseLevel_TestCases()
         {
-            yield return new object[] { "Off", "", new LogLevel[] { } };
-            yield return new object[] { "Off", "Fatal", new LogLevel[] { } };
-            yield return new object[] { "Error", "Debug", new LogLevel[] { } };
-            yield return new object[] { " ", "", new LogLevel[] { } };
-            yield return new object[] { " ", "Fatal", new LogLevel[] { } };
-            yield return new object[] { "", "", new LogLevel[] { } };
+            yield return new object[] { "Off", "", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { "Off", "Fatal", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { "Error", "Debug", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { " ", "", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { " ", "Fatal", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { "", "", ArrayHelper.Empty<LogLevel>() };
             yield return new object[] { "", "Off", new[] { LogLevel.Trace, LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error, LogLevel.Fatal } };
             yield return new object[] { "", "Fatal", new[] { LogLevel.Trace, LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error, LogLevel.Fatal } };
             yield return new object[] { "", "Debug", new[] { LogLevel.Trace, LogLevel.Debug } };
             yield return new object[] { "", "Trace", new[] { LogLevel.Trace } };
             yield return new object[] { "", " error", new[] { LogLevel.Trace, LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error } };
-            yield return new object[] { "", "Wrong", new LogLevel[] { } };
-            yield return new object[] { "Wrong", "", new LogLevel[] { } };
-            yield return new object[] { "Wrong", "Fatal", new LogLevel[] { } };
-            yield return new object[] { " error", "Debug", new LogLevel[] { } };
+            yield return new object[] { "", "Wrong", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { "Wrong", "", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { "Wrong", "Fatal", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { " error", "Debug", ArrayHelper.Empty<LogLevel>() };
             yield return new object[] { " error", "Fatal", new[] { LogLevel.Error, LogLevel.Fatal } };
             yield return new object[] { " error", "", new[] { LogLevel.Error, LogLevel.Fatal } };
             yield return new object[] { "Error", "", new[] { LogLevel.Error, LogLevel.Fatal } };
             yield return new object[] { "Fatal", "", new[] { LogLevel.Fatal } };
-            yield return new object[] { "Off", "", new LogLevel[] { } };
-            yield return new object[] { "Trace", " ", new LogLevel[] { } };
+            yield return new object[] { "Off", "", ArrayHelper.Empty<LogLevel>() };
+            yield return new object[] { "Trace", " ", ArrayHelper.Empty<LogLevel>() };
             yield return new object[] { "Trace", "", new[] { LogLevel.Trace, LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error, LogLevel.Fatal } };
             yield return new object[] { "Trace", "Debug", new[] { LogLevel.Trace, LogLevel.Debug } };
             yield return new object[] { "Trace", "Trace", new[] { LogLevel.Trace, LogLevel.Trace } };

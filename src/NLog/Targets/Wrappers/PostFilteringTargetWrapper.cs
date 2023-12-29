@@ -47,17 +47,11 @@ namespace NLog.Targets.Wrappers
     /// <a href="https://github.com/nlog/nlog/wiki/PostFilteringWrapper-target">See NLog Wiki</a>
     /// </remarks>
     /// <seealso href="https://github.com/nlog/nlog/wiki/PostFilteringWrapper-target">Documentation on NLog Wiki</seealso>
-    /// <remarks>
-    /// PostFilteringWrapper must be used with some type of buffering target or wrapper, such as
-    /// AsyncTargetWrapper, BufferingWrapper or ASPNetBufferingWrapper.
-    /// </remarks>
     /// <example>
     /// <p>
     /// This example works like this. If there are no Warn,Error or Fatal messages in the buffer
     /// only Info messages are written to the file, but if there are any warnings or errors, 
-    /// the output includes detailed trace (levels &gt;= Debug). You can plug in a different type
-    /// of buffering wrapper (such as ASPNetBufferingWrapper) to achieve different
-    /// functionality.
+    /// the output includes detailed trace (levels &gt;= Debug).
     /// </p>
     /// <p>
     /// To set up the target in the <a href="https://github.com/NLog/NLog/wiki/Configuration-file">configuration file</a>, 
@@ -84,7 +78,7 @@ namespace NLog.Targets.Wrappers
         /// Initializes a new instance of the <see cref="PostFilteringTargetWrapper" /> class.
         /// </summary>
         public PostFilteringTargetWrapper(Target wrappedTarget)
-            : this(null, wrappedTarget)
+            : this(string.IsNullOrEmpty(wrappedTarget?.Name) ? null : (wrappedTarget.Name + "_wrapped"), wrappedTarget)
         {
         }
 
@@ -95,7 +89,7 @@ namespace NLog.Targets.Wrappers
         /// <param name="wrappedTarget">The wrapped target.</param>
         public PostFilteringTargetWrapper(string name, Target wrappedTarget)
         {
-            Name = name;
+            Name = name ?? Name;
             WrappedTarget = wrappedTarget;
         }
 

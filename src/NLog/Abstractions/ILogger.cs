@@ -123,12 +123,12 @@ namespace NLog
         void Trace(LogMessageGenerator messageFunc);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Trace</c> level.
+        /// Obsolete and replaced by <see cref="Trace(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Trace</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Trace(Exception exception, string message, params object[] args) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
+        [Obsolete("Use Trace(Exception exception, string message) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void TraceException([Localizable(false)] string message, Exception exception);
 
@@ -182,12 +182,12 @@ namespace NLog
         void Trace([Localizable(false)][StructuredMessageTemplate] string message, params object[] args);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Trace</c> level.
+        /// Obsolete and replaced by <see cref="Trace(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Trace</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Trace(Exception exception, string message, params object[] args) method instead. Marked obsolete before v4.3.11")]
+        [Obsolete("Use Trace(Exception exception, string message) method instead. Marked obsolete with v4.3.11")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void Trace([Localizable(false)] string message, Exception exception);
 
@@ -289,21 +289,21 @@ namespace NLog
         void Debug(LogMessageGenerator messageFunc);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Debug</c> level.
+        /// Obsolete and replaced by <see cref="Debug(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Debug</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Debug(Exception exception, string message, params object[] args) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
+        [Obsolete("Use Debug(Exception exception, string message) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        void DebugException([Localizable(false)][StructuredMessageTemplate] string message, Exception exception);
+        void DebugException([Localizable(false)] string message, Exception exception);
 
         /// <summary>
         /// Writes the diagnostic message and exception at the <c>Debug</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
-        void Debug(Exception exception, [Localizable(false)][StructuredMessageTemplate] string message);
+        void Debug(Exception exception, [Localizable(false)] string message);
 
         /// <summary>
         /// Writes the diagnostic message and exception at the <c>Debug</c> level.
@@ -348,12 +348,12 @@ namespace NLog
         void Debug([Localizable(false)][StructuredMessageTemplate] string message, params object[] args);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Debug</c> level.
+        /// Obsolete and replaced by <see cref="Debug(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Debug</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Debug(Exception exception, string message, params object[] args) method instead. Marked obsolete before v4.3.11")]
+        [Obsolete("Use Debug(Exception exception, string message) method instead. Marked obsolete with v4.3.11")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void Debug([Localizable(false)] string message, Exception exception);
 
@@ -455,12 +455,12 @@ namespace NLog
         void Info(LogMessageGenerator messageFunc);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Info</c> level.
+        /// Obsolete and replaced by <see cref="Info(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Info</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Info(Exception exception, string message, params object[] args) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
+        [Obsolete("Use Info(Exception exception, string message) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void InfoException([Localizable(false)] string message, Exception exception);
 
@@ -514,12 +514,12 @@ namespace NLog
         void Info([Localizable(false)][StructuredMessageTemplate] string message, params object[] args);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Info</c> level.
+        /// Obsolete and replaced by <see cref="Info(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Info</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Info(Exception exception, string message, params object[] args) method instead. Marked obsolete before v4.3.11")]
+        [Obsolete("Use Info(Exception exception, string message) method instead. Marked obsolete with v4.3.11")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void Info([Localizable(false)] string message, Exception exception);
 
@@ -621,12 +621,12 @@ namespace NLog
         void Warn(LogMessageGenerator messageFunc);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Warn</c> level.
+        /// Obsolete and replaced by <see cref="Warn(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Warn</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Warn(Exception exception, string message, params object[] args) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
+        [Obsolete("Use Warn(Exception exception, string message) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void WarnException([Localizable(false)] string message, Exception exception);
 
@@ -680,12 +680,12 @@ namespace NLog
         void Warn([Localizable(false)][StructuredMessageTemplate] string message, params object[] args);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Warn</c> level.
+        /// Obsolete and replaced by <see cref="Warn(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Warn</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Warn(Exception exception, string message, params object[] args) method instead. Marked obsolete before v4.3.11")]
+        [Obsolete("Use Warn(Exception exception, string message) method instead. Marked obsolete with v4.3.11")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void Warn([Localizable(false)] string message, Exception exception);
 
@@ -787,12 +787,12 @@ namespace NLog
         void Error(LogMessageGenerator messageFunc);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Error</c> level.
+        /// Obsolete and replaced by <see cref="Error(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Error</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Error(Exception exception, string message, params object[] args) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
+        [Obsolete("Use Error(Exception exception, string message) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void ErrorException([Localizable(false)] string message, Exception exception);
 
@@ -847,12 +847,12 @@ namespace NLog
         void Error([Localizable(false)][StructuredMessageTemplate] string message, params object[] args);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Error</c> level.
+        /// Obsolete and replaced by <see cref="Error(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Error</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Error(Exception exception, string message, params object[] args) method instead. Marked obsolete before v4.3.11")]
+        [Obsolete("Use Error(Exception exception, string message) method instead. Marked obsolete with v4.3.11")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void Error([Localizable(false)] string message, Exception exception);
 
@@ -954,14 +954,14 @@ namespace NLog
         void Fatal(LogMessageGenerator messageFunc);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Fatal</c> level.
+        /// Obsolete and replaced by <see cref="Fatal(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Fatal</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Fatal(Exception exception, string message, params object[] args) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
+        [Obsolete("Use Fatal(Exception exception, string message) method instead. Marked obsolete with v4.3.11 (Only here because of LibLog)")]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        void FatalException([Localizable(false)][StructuredMessageTemplate] string message, Exception exception);
+        void FatalException([Localizable(false)] string message, Exception exception);
 
         /// <summary>
         /// Writes the diagnostic message and exception at the <c>Fatal</c> level.
@@ -1013,12 +1013,12 @@ namespace NLog
         void Fatal([Localizable(false)][StructuredMessageTemplate] string message, params object[] args);
 
         /// <summary>
-        /// Writes the diagnostic message and exception at the <c>Fatal</c> level.
+        /// Obsolete and replaced by <see cref="Fatal(Exception, string)"/> - Writes the diagnostic message and exception at the <c>Fatal</c> level.
         /// </summary>
         /// <param name="message">A <see langword="string" /> to be written.</param>
         /// <param name="exception">An exception to be logged.</param>
         /// <remarks>This method was marked as obsolete before NLog 4.3.11 and it may be removed in a future release.</remarks>
-        [Obsolete("Use Fatal(Exception exception, string message, params object[] args) method instead. Marked obsolete before v4.3.11")]
+        [Obsolete("Use Fatal(Exception exception, string message) method instead. Marked obsolete with v4.3.11")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         void Fatal([Localizable(false)] string message, Exception exception);
 

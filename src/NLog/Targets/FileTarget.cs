@@ -250,6 +250,7 @@ namespace NLog.Targets
                 {
                     _fileNameKind = value;
                     _fullFileName = CreateFileNameLayout(FileName);
+                    _fullArchiveFileName = CreateFileNameLayout(ArchiveFileName);
                     ResetFileAppenders("FileNameKind Changed");
                 }
             }
@@ -487,6 +488,15 @@ namespace NLog.Targets
         private bool? _archiveOldFileOnStartup;
 
         /// <summary>
+        /// Gets or sets whether to write the Header on initial creation of file appender, even if the file is not empty.
+        /// Default value is <see langword="false"/>, which means only write header when initial file is empty (Ex. ensures valid CSV files)
+        /// </summary>
+        /// <remarks>
+        /// Alternative use <see cref="ArchiveOldFileOnStartup"/> to ensure each application session gets individual log-file.
+        /// </remarks>
+        public bool WriteHeaderWhenInitialFileNotEmpty { get; set; }
+
+        /// <summary>
         /// Gets or sets a value of the file size threshold to archive old log file on startup.
         /// </summary>
         /// <remarks>
@@ -598,9 +608,7 @@ namespace NLog.Targets
         {
             get
             {
-                if (_fullArchiveFileName is null) return null;
-
-                return _fullArchiveFileName.GetLayout();
+                return _fullArchiveFileName?.GetLayout();
             }
             set
             {
@@ -719,32 +727,29 @@ namespace NLog.Targets
         /// </summary>
         private void RefreshArchiveFilePatternToWatch(string fileName, LogEventInfo logEvent)
         {
-            if (_fileAppenderCache != null)
-            {
-                _fileAppenderCache.CheckCloseAppenders -= AutoCloseAppendersAfterArchive;
+            _fileAppenderCache.CheckCloseAppenders -= AutoCloseAppendersAfterArchive;
 
-                bool mustWatchArchiving = IsArchivingEnabled && KeepFileOpen && ConcurrentWrites;
-                bool mustWatchActiveFile = EnableFileDelete && ((KeepFileOpen && ConcurrentWrites) || (IsSimpleKeepFileOpen && !EnableFileDeleteSimpleMonitor));
-                if (mustWatchArchiving || mustWatchActiveFile)
-                {
-                    _fileAppenderCache.CheckCloseAppenders += AutoCloseAppendersAfterArchive;   // Activates FileSystemWatcher
-                }
+            bool mustWatchArchiving = IsArchivingEnabled && KeepFileOpen && ConcurrentWrites;
+            bool mustWatchActiveFile = EnableFileDelete && ((KeepFileOpen && ConcurrentWrites) || (IsSimpleKeepFileOpen && !EnableFileDeleteSimpleMonitor));
+            if (mustWatchArchiving || mustWatchActiveFile)
+            {
+                _fileAppenderCache.CheckCloseAppenders += AutoCloseAppendersAfterArchive;   // Activates FileSystemWatcher
+            }
 
 #if !NETSTANDARD1_3
-                if (mustWatchArchiving)
-                {
-                    string archiveFilePattern = GetArchiveFileNamePattern(fileName, logEvent);
-                    var fileArchiveStyle = !string.IsNullOrEmpty(archiveFilePattern) ? GetFileArchiveHelper(archiveFilePattern) : null;
-                    string fileNameMask = fileArchiveStyle != null ? _fileArchiveHelper.GenerateFileNameMask(archiveFilePattern) : string.Empty;
-                    string directoryMask = !string.IsNullOrEmpty(fileNameMask) ? Path.Combine(Path.GetDirectoryName(archiveFilePattern), fileNameMask) : string.Empty;
-                    _fileAppenderCache.ArchiveFilePatternToWatch = directoryMask;
-                }
-                else
-                {
-                    _fileAppenderCache.ArchiveFilePatternToWatch = null;
-                }
-#endif
+            if (mustWatchArchiving)
+            {
+                string archiveFilePattern = GetArchiveFileNamePattern(fileName, logEvent);
+                var fileArchiveStyle = !string.IsNullOrEmpty(archiveFilePattern) ? GetFileArchiveHelper(archiveFilePattern) : null;
+                string fileNameMask = fileArchiveStyle != null ? _fileArchiveHelper.GenerateFileNameMask(archiveFilePattern) : string.Empty;
+                string directoryMask = !string.IsNullOrEmpty(fileNameMask) ? Path.Combine(Path.GetDirectoryName(archiveFilePattern), fileNameMask) : string.Empty;
+                _fileAppenderCache.ArchiveFilePatternToWatch = directoryMask;
             }
+            else
+            {
+                _fileAppenderCache.ArchiveFilePatternToWatch = null;
+            }
+#endif
         }
 
         /// <summary>
@@ -1004,9 +1009,10 @@ namespace NLog.Targets
         internal string GetFullFileName(LogEventInfo logEvent)
         {
             if (_fullFileName is null)
-            {
                 return null;
-            }
+
+            if (_fullFileName.IsFixedFilePath)
+                return _fullFileName.Render(logEvent);
 
             using (var targetBuilder = ReusableLayoutBuilder.Allocate())
             {
@@ -1127,6 +1133,7 @@ namespace NLog.Targets
         }
 
         /// <summary>
+        /// Obsolete and replaced by <see cref="RenderFormattedMessage"/> with NLog v5.
         /// Formats the log event for write.
         /// </summary>
         /// <param name="logEvent">The log event to be formatted.</param>
@@ -1139,6 +1146,7 @@ namespace NLog.Targets
         }
 
         /// <summary>
+        /// Obsolete and replaced by <see cref="RenderFormattedMessage"/> with NLog v5.
         /// Gets the bytes to be written to the file.
         /// </summary>
         /// <param name="logEvent">Log event.</param>
@@ -1157,6 +1165,7 @@ namespace NLog.Targets
         }
 
         /// <summary>
+        /// Obsolete and replaced by <see cref="TransformStream"/> with NLog v5.
         /// Modifies the specified byte array before it gets sent to a file.
         /// </summary>
         /// <param name="value">The byte array.</param>
@@ -2496,25 +2505,24 @@ namespace NLog.Targets
             if (Header is null && !WriteBom) return;
 
             var length = appender.GetFileLength();
-            //  Write header and BOM only on empty files or if file info cannot be obtained.
-            if (length is null || length == 0)
+            // File is empty or file info cannot be obtained
+            var isNewOrEmptyFile = length is null || length == 0;
+            
+            if (isNewOrEmptyFile && WriteBom)
             {
-                if (WriteBom)
+                InternalLogger.Trace("{0}: Write byte order mark from encoding={1}", this, Encoding);
+                var preamble = Encoding.GetPreamble();
+                if (preamble.Length > 0)
+                    appender.Write(preamble, 0, preamble.Length);
+            }
+            
+            if (Header != null && (isNewOrEmptyFile || WriteHeaderWhenInitialFileNotEmpty))
+            {
+                InternalLogger.Trace("{0}: Write header", this);
+                ArraySegment<byte> headerBytes = GetLayoutBytes(Header);
+                if (headerBytes.Count > 0)
                 {
-                    InternalLogger.Trace("{0}: Write byte order mark from encoding={1}", this, Encoding);
-                    var preamble = Encoding.GetPreamble();
-                    if (preamble.Length > 0)
-                        appender.Write(preamble, 0, preamble.Length);
-                }
-
-                if (Header != null)
-                {
-                    InternalLogger.Trace("{0}: Write header", this);
-                    ArraySegment<byte> headerBytes = GetLayoutBytes(Header);
-                    if (headerBytes.Count > 0)
-                    {
-                        appender.Write(headerBytes.Array, headerBytes.Offset, headerBytes.Count);
-                    }
+                    appender.Write(headerBytes.Array, headerBytes.Offset, headerBytes.Count);
                 }
             }
         }

@@ -87,15 +87,20 @@ namespace NLog
         private readonly ILoggingConfigurationLoader _configLoader;
 
         /// <summary>
-        /// Occurs when logging <see cref="Configuration" /> changes.
+        /// Occurs when logging <see cref="Configuration" /> changes. Both when assigned to new config or config unloaded.
         /// </summary>
+        /// <remarks>
+        /// Note <see cref="LoggingConfigurationChangedEventArgs.ActivatedConfiguration"/> can be <c>null</c> when unloading configuration at shutdown.
+        /// </remarks>
         public event EventHandler<LoggingConfigurationChangedEventArgs> ConfigurationChanged;
 
 #if !NETSTANDARD1_3
         /// <summary>
+        /// Obsolete and replaced by <see cref="ConfigurationChanged"/> with NLog v5.2.
         /// Occurs when logging <see cref="Configuration" /> gets reloaded.
         /// </summary>
-        [Obsolete("Replaced by ConfigurationChanged. Marked obsolete on NLog 5.2")]
+        [Obsolete("Replaced by ConfigurationChanged, but check args.ActivatedConfiguration != null. Marked obsolete on NLog 5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public event EventHandler<LoggingConfigurationReloadedEventArgs> ConfigurationReloaded;
 #endif
 
@@ -268,11 +273,12 @@ namespace NLog
                     {
                         try
                         {
+                            LogNLogAssemblyVersion();
                             _config = config;
                             _configLoader.Activated(this, _config);
                             _config.Dump();
                             ReconfigExistingLoggers();
-                            LogConfigurationInitialized();
+                            InternalLogger.Info("Configuration initialized.");
                         }
                         finally
                         {
@@ -307,9 +313,12 @@ namespace NLog
                     {
                         try
                         {
+                            if (oldConfig is null)
+                                LogNLogAssemblyVersion();
                             _configLoader.Activated(this, _config);
                             _config.Dump();
                             ReconfigExistingLoggers();
+                            InternalLogger.Info("Configuration initialized.");
                         }
                         finally
                         {
@@ -353,7 +362,7 @@ namespace NLog
             ActiveMessageFormatter = messageFormatter.FormatMessage;
             if (messageFormatter is LogMessageTemplateFormatter templateFormatter)
             {
-                SingleTargetMessageFormatter = new LogMessageTemplateFormatter(_serviceRepository, templateFormatter.MessageTemplateParser == true, true).FormatMessage;
+                SingleTargetMessageFormatter = new LogMessageTemplateFormatter(_serviceRepository, templateFormatter.EnableMessageTemplateParser == true, true).FormatMessage;
             }
             else
             {
@@ -401,9 +410,11 @@ namespace NLog
         }
         internal CultureInfo _defaultCultureInfo;
 
-        internal static void LogConfigurationInitialized()
+        internal static void LogNLogAssemblyVersion()
         {
-            InternalLogger.Info("Configuration initialized.");
+            if (!InternalLogger.IsInfoEnabled)
+                return;
+
             try
             {
                 InternalLogger.LogAssemblyVersion(typeof(LogFactory).GetAssembly());
@@ -413,7 +424,6 @@ namespace NLog
                 InternalLogger.Debug(ex, "Not running in full trust");
             }
         }
-
         /// <summary>
         /// Performs application-defined tasks associated with freeing, releasing, or resetting 
         /// unmanaged resources.
@@ -499,6 +509,7 @@ namespace NLog
         /// Make sure you are not calling this method in a loop.</remarks>
         [MethodImpl(MethodImplOptions.NoInlining)]
         [Obsolete("Replaced by GetCurrentClassLogger<T>(). Marked obsolete on NLog 5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public Logger GetCurrentClassLogger([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type loggerType)
         {
 #if !NETSTANDARD1_3 && !NETSTANDARD1_5
@@ -535,6 +546,7 @@ namespace NLog
         }
 
         /// <summary>
+        /// Obsolete and replaced by <see cref="GetLogger{T}(string)"/> with NLog v5.2.
         /// Gets the specified named logger.
         /// Use <paramref name="loggerType"/> to create instance of a custom <see cref="Logger"/>.
         /// If you haven't defined your own <see cref="Logger"/> class, then use the overload without the loggerType.
@@ -545,9 +557,10 @@ namespace NLog
         /// same argument aren't guaranteed to return the same logger reference.</returns>
         [Obsolete("Replaced by GetLogger<T>(). Marked obsolete on NLog 5.2")]
         [UnconditionalSuppressMessage("Trimming - Ignore since obsolete", "IL2067")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public Logger GetLogger(string name, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type loggerType)
         {
-            return GetLoggerThreadSafe(name, loggerType ?? typeof(Logger), (t) => Activator.CreateInstance(t, true) as Logger);
+            return GetLoggerThreadSafe(name, loggerType ?? typeof(Logger), (t) => Logger.DefaultLoggerType.IsAssignableFrom(t) ? Activator.CreateInstance(t, true) as Logger : null);
         }
 
         private bool RefreshExistingLoggers()
@@ -562,9 +575,10 @@ namespace NLog
                 purgeObsoleteLoggers = loggers.Count != _loggerCache.Count;
             }
 
+            var loggingRules = _config?.GetLoggingRulesThreadSafe();
             foreach (var logger in loggers)
             {
-                logger.SetConfiguration(BuildLoggerConfiguration(logger.Name, _config));
+                logger.SetConfiguration(BuildLoggerConfiguration(logger.Name, loggingRules));
             }
 
             return purgeObsoleteLoggers;
@@ -862,22 +876,22 @@ namespace NLog
         /// Raises the event when the configuration is reloaded. 
         /// </summary>
         /// <param name="e">Event arguments</param>
-        [Obsolete("Replaced by OnConfigurationChanged. Marked obsolete on NLog 5.2")]
+        [Obsolete("Replaced by ConfigurationChanged, but check args.ActivatedConfiguration != null. Marked obsolete on NLog 5.2")]
         protected virtual void OnConfigurationReloaded(LoggingConfigurationReloadedEventArgs e)
         {
             ConfigurationReloaded?.Invoke(this, e);
         }
 
-        [Obsolete("Replaced by OnConfigurationChanged. Marked obsolete on NLog 5.2")]
+        [Obsolete("Replaced by ConfigurationChanged, but check args.ActivatedConfiguration != null. Marked obsolete on NLog 5.2")]
         internal void NotifyConfigurationReloaded(LoggingConfigurationReloadedEventArgs eventArgs)
         {
             OnConfigurationReloaded(eventArgs);
         }
 #endif
 
-        internal TargetWithFilterChain[] BuildLoggerConfiguration(string loggerName, LoggingConfiguration configuration)
+        internal TargetWithFilterChain[] BuildLoggerConfiguration(string loggerName, List<LoggingRule> loggingRules)
         {
-            var targetsByLevel = TargetWithFilterChain.BuildLoggerConfiguration(loggerName, configuration, IsLoggingEnabled() ? GlobalThreshold : LogLevel.Off);
+            var targetsByLevel = TargetWithFilterChain.BuildLoggerConfiguration(loggerName, loggingRules, IsLoggingEnabled() ? GlobalThreshold : LogLevel.Off);
             if (InternalLogger.IsDebugEnabled && !DumpTargetConfigurationForLogger(loggerName, targetsByLevel))
             {
                 InternalLogger.Debug("Targets not configured for Logger: {0}", loggerName);
@@ -1035,6 +1049,7 @@ namespace NLog
         /// </summary>
         /// <returns>The file paths to the possible config file</returns>
         [Obsolete("Replaced by LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public IEnumerable<string> GetCandidateConfigFilePaths()
         {
             if (_candidateConfigFilePaths != null)
@@ -1049,7 +1064,7 @@ namespace NLog
         /// Get file paths (including filename) for the possible NLog config files. 
         /// </summary>
         /// <returns>The file paths to the possible config file</returns>
-        [Obsolete("Replaced by LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
+        [Obsolete("Replaced by chaining LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
         internal IEnumerable<string> GetCandidateConfigFilePaths(string filename)
         {
             if (_candidateConfigFilePaths != null)
@@ -1062,7 +1077,8 @@ namespace NLog
         /// Overwrite the candidates paths (including filename) for the possible NLog config files.
         /// </summary>
         /// <param name="filePaths">The file paths to the possible config file</param>
-        [Obsolete("Replaced by LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
+        [Obsolete("Replaced by chaining LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public void SetCandidateConfigFilePaths(IEnumerable<string> filePaths)
         {
             _candidateConfigFilePaths = new List<string>();
@@ -1076,7 +1092,8 @@ namespace NLog
         /// <summary>
         /// Clear the candidate file paths and return to the defaults.
         /// </summary>
-        [Obsolete("Replaced by LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
+        [Obsolete("Replaced by chaining LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public void ResetCandidateConfigFilePath()
         {
             _candidateConfigFilePaths = null;
@@ -1106,7 +1123,8 @@ namespace NLog
                 }
 
                 var config = _config ?? (_loggerCache.Count == 0 ? Configuration : null);   // Only force load NLog-config with first logger
-                newLogger.Initialize(name, BuildLoggerConfiguration(name, config), this);
+                var loggingRules = config?.GetLoggingRulesThreadSafe();
+                newLogger.Initialize(name, BuildLoggerConfiguration(name, loggingRules), this);
                 if (config is null && _loggerCache.Count == 0)
                 {
                     InternalLogger.Info("NLog Configuration has not been loaded.");
@@ -1118,19 +1136,18 @@ namespace NLog
 
         internal Logger CreateNewLogger(Type loggerType, Func<Type, Logger> loggerCreator)
         {
-            Logger newLogger;
             try
             {
-                newLogger = loggerCreator(loggerType);
+                Logger newLogger = loggerCreator(loggerType);
                 if (newLogger is null)
                 {
-                    if (!Logger.DefaultLoggerType.IsAssignableFrom(loggerType))
-                    {
-                        throw new NLogRuntimeException($"GetLogger / GetCurrentClassLogger with type '{loggerType}' does not inherit from NLog Logger");
-                    }
-                    else
+                    if (Logger.DefaultLoggerType.IsAssignableFrom(loggerType))
                     {
                         throw new NLogRuntimeException($"GetLogger / GetCurrentClassLogger with type '{loggerType}' could not create instance of NLog Logger");
+                    }
+                    else if (ThrowExceptions)
+                    {
+                        throw new NLogRuntimeException($"GetLogger / GetCurrentClassLogger with type '{loggerType}' does not inherit from NLog Logger");
                     }
                 }
                 else
@@ -1145,10 +1162,9 @@ namespace NLog
                 {
                     throw;
                 }
-                newLogger = null;
             }
 
-            return newLogger ?? new Logger();
+            return new Logger();
         }
 
         /// <summary>
@@ -1157,6 +1173,7 @@ namespace NLog
         /// <param name="configFile">Configuration file to be read</param>
         /// <returns>LogFactory instance for fluent interface</returns>
         [Obsolete("Replaced by LogFactory.Setup().LoadConfigurationFromFile(). Marked obsolete on NLog 5.2")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public LogFactory LoadConfiguration(string configFile)
         {
             // TODO Remove explicit File-loading logic from LogFactory (Should handle environment without files)

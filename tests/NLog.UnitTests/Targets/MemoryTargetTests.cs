@@ -31,13 +31,13 @@
 // THE POSSIBILITY OF SUCH DAMAGE.
 // 
 
-using System;
-using System.Linq;
-using Xunit;
-using NLog.Targets;
-
 namespace NLog.UnitTests.Targets
 {
+    using System;
+    using System.Linq;
+    using NLog.Targets;
+    using Xunit;
+
     public class MemoryTargetTests : NLogTestBase
     {
         [Fact]
@@ -52,7 +52,7 @@ namespace NLog.UnitTests.Targets
                 builder.ForLogger().WriteTo(memoryTarget);
             }).GetCurrentClassLogger();
 
-            Assert.True(memoryTarget.Logs.Count() == 0);
+            Assert.Empty(memoryTarget.Logs);
             logger.Trace("TTT");
             logger.Debug("DDD");
             logger.Info("III");
@@ -62,7 +62,7 @@ namespace NLog.UnitTests.Targets
 
             logger.Factory.Configuration = null;
 
-            Assert.True(memoryTarget.Logs.Count() == 6);
+            Assert.True(memoryTarget.Logs.Count == 6);
             Assert.True(memoryTarget.Logs[0] == "Trace TTT");
             Assert.True(memoryTarget.Logs[1] == "Debug DDD");
             Assert.True(memoryTarget.Logs[2] == "Info III");
@@ -88,7 +88,7 @@ namespace NLog.UnitTests.Targets
             logger.Info("III");
             logger.Warn("WWW");
 
-            Assert.True(memoryTarget.Logs.Count() == 3);
+            Assert.True(memoryTarget.Logs.Count == 3);
             Assert.True(memoryTarget.Logs[0] == "Debug DDD");
             Assert.True(memoryTarget.Logs[1] == "Info III");
             Assert.True(memoryTarget.Logs[2] == "Warn WWW");
@@ -110,7 +110,7 @@ namespace NLog.UnitTests.Targets
             logger.Error("EEE");
             logger.Fatal("FFF");
 
-            Assert.True(memoryTarget.Logs.Count() == 3);
+            Assert.True(memoryTarget.Logs.Count == 3);
             Assert.True(memoryTarget.Logs[0] == "Trace TTT");
             Assert.True(memoryTarget.Logs[1] == "Error EEE");
             Assert.True(memoryTarget.Logs[2] == "Fatal FFF");
@@ -140,10 +140,28 @@ namespace NLog.UnitTests.Targets
 
             logger.Factory.Configuration = null;
 
-            Assert.True(memoryTarget.Logs.Count() == 3);
+            Assert.True(memoryTarget.Logs.Count == 3);
             Assert.True(memoryTarget.Logs[0] == "Trace TTT");
             Assert.True(memoryTarget.Logs[1] == "Debug DDD");
             Assert.True(memoryTarget.Logs[2] == "Info III");
+
+            Assert.True(memoryTarget.Logs.All(l => !string.IsNullOrEmpty(l)));
+            Assert.True(memoryTarget.Logs.Contains(memoryTarget.Logs[0]));
+            Assert.False(memoryTarget.Logs.Contains(string.Empty));
+            Assert.True(memoryTarget.Logs.Remove(memoryTarget.Logs[0]));
+            Assert.False(memoryTarget.Logs.Remove(string.Empty));
+            Assert.Equal(2, memoryTarget.Logs.Count);
+            Assert.Equal(0, memoryTarget.Logs.IndexOf(memoryTarget.Logs[0]));
+            Assert.Equal(1, memoryTarget.Logs.IndexOf(memoryTarget.Logs[1]));
+            Assert.Equal(-1, memoryTarget.Logs.IndexOf(string.Empty));
+            memoryTarget.Logs.RemoveAt(1);
+            Assert.Equal(1, memoryTarget.Logs.Count);
+            memoryTarget.Logs[0] = "Hello World";
+            Assert.Contains("Hello World", memoryTarget.Logs);
+            memoryTarget.Logs.Insert(1, "Goodbye World");
+            Assert.Equal("Hello World", memoryTarget.Logs[0]);
+            Assert.Equal("Goodbye World", memoryTarget.Logs[1]);
+            Assert.Equal(2, memoryTarget.Logs.Count);
         }
 
         [Fact]
@@ -169,7 +187,7 @@ namespace NLog.UnitTests.Targets
 
             logger.Factory.Configuration = null;
 
-            Assert.True(memoryTarget.Logs.Count() == 5);
+            Assert.True(memoryTarget.Logs.Count == 5);
             Assert.True(memoryTarget.Logs[0] == "Trace TTT");
             Assert.True(memoryTarget.Logs[1] == "Debug ");
             Assert.True(memoryTarget.Logs[2] == "Info III");
@@ -198,7 +216,7 @@ namespace NLog.UnitTests.Targets
 
             logger.Factory.Configuration = null;
 
-            Assert.True(memoryTarget.Logs.Count() == 5);
+            Assert.True(memoryTarget.Logs.Count == 5);
             Assert.True(memoryTarget.Logs[0] == "Trace TTT");
             Assert.True(memoryTarget.Logs[1] == "Debug ");
             Assert.True(memoryTarget.Logs[2] == "Info III");

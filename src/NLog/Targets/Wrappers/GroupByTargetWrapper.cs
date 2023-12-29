@@ -48,7 +48,7 @@ namespace NLog.Targets.Wrappers
     /// </remarks>
     /// <seealso href="https://github.com/NLog/NLog/wiki/GroupByWrapper-target">Documentation on NLog Wiki</seealso>
     [Target("GroupByWrapper", IsWrapper = true)]
-    class GroupByTargetWrapper : WrapperTargetBase
+    public class GroupByTargetWrapper : WrapperTargetBase
     {
         SortHelpers.KeySelector<AsyncLogEventInfo, string> _buildKeyStringDelegate;
 
@@ -70,7 +70,7 @@ namespace NLog.Targets.Wrappers
         /// </summary>
         /// <param name="wrappedTarget">The wrapped target.</param>
         public GroupByTargetWrapper(Target wrappedTarget)
-            : this(null, wrappedTarget)
+            : this(string.IsNullOrEmpty(wrappedTarget?.Name) ? null : (wrappedTarget.Name + "_wrapped"), wrappedTarget)
         {
         }
 

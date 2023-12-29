@@ -41,6 +41,7 @@ namespace NLog.UnitTests.LayoutRenderers
     using System.Threading;
     using System.Threading.Tasks;
     using NLog.Config;
+    using NLog.Internal;
     using NLog.Layouts;
     using NLog.Targets;
     using Xunit;
@@ -56,6 +57,11 @@ namespace NLog.UnitTests.LayoutRenderers
                                 {
                                     public class HiddenAssemblyLogger
                                     {
+                                        public HiddenAssemblyLogger(NLog.Logger logger)
+                                        {
+                                            LogDebug(logger);
+                                        }
+
                                         public void LogDebug(NLog.Logger logger)
                                         {
                                             logger.Debug(""msg"");
@@ -98,18 +104,11 @@ namespace NLog.UnitTests.LayoutRenderers
             Type hiddenAssemblyLoggerType = compiledAssembly.GetType("Foo.HiddenAssemblyLogger");
             Assert.NotNull(hiddenAssemblyLoggerType);
 
-            // load methodinfo
-            MethodInfo logDebugMethod = hiddenAssemblyLoggerType.GetMethod("LogDebug");
-            Assert.NotNull(logDebugMethod);
-
-            // instantiate the HiddenAssemblyLogger from previously generated assembly
-            object instance = Activator.CreateInstance(hiddenAssemblyLoggerType);
-
             // Add the previously generated assembly to the "blacklist"
             LogManager.AddHiddenAssembly(compiledAssembly);
 
-            // call the log method
-            logDebugMethod.Invoke(instance, new object[] { logger });
+            // instantiate the HiddenAssemblyLogger from previously generated assembly
+            object instance = Activator.CreateInstance(hiddenAssemblyLoggerType, new object[] { logger });
 
             MethodBase currentMethod = MethodBase.GetCurrentMethod();
             AssertDebugLastMessage("debug", currentMethod.DeclaringType.FullName + "." + currentMethod.Name + " msg");
@@ -140,7 +139,7 @@ namespace NLog.UnitTests.LayoutRenderers
             string lastMessage = GetDebugLastMessage("debug", logFactory);
             // There's a difference in handling line numbers between .NET and Mono
             // We're just interested in checking if it's above 100000
-            Assert.True(lastMessage.IndexOf("callsitetests.cs:" + linenumber, StringComparison.OrdinalIgnoreCase) >= 0, "Invalid line number. Expected prefix of 10000, got: " + lastMessage);
+            Assert.Contains("callsitetests.cs:" + linenumber, lastMessage); // Expected prefix of 10000
 #if DEBUG
 #line default
 #endif
@@ -755,7 +754,7 @@ namespace NLog.UnitTests.LayoutRenderers
         {
             var logger = logFactory.GetCurrentClassLogger();
             logger.Warn("direct");
-            var reader = new StreamReader(new MemoryStream(new byte[0]));
+            var reader = new StreamReader(new MemoryStream(ArrayHelper.Empty<byte>()));
             await reader.ReadLineAsync();
         }
 
@@ -765,7 +764,7 @@ namespace NLog.UnitTests.LayoutRenderers
             {
                 var logger = logFactory.GetCurrentClassLogger();
                 logger.Warn("direct");
-                var reader = new StreamReader(new MemoryStream(new byte[0]));
+                var reader = new StreamReader(new MemoryStream(ArrayHelper.Empty<byte>()));
                 await reader.ReadLineAsync();
             }
         }
@@ -826,7 +825,7 @@ namespace NLog.UnitTests.LayoutRenderers
         {
             var logger = logFactory.GetCurrentClassLogger();
             logger.Warn("direct");
-            var reader = new StreamReader(new MemoryStream(new byte[0]));
+            var reader = new StreamReader(new MemoryStream(ArrayHelper.Empty<byte>()));
             await reader.ReadLineAsync();
         }
 
@@ -841,7 +840,7 @@ namespace NLog.UnitTests.LayoutRenderers
             {
                 var logger = logFactory.GetCurrentClassLogger();
                 logger.Warn("direct");
-                var reader = new StreamReader(new MemoryStream(new byte[0]));
+                var reader = new StreamReader(new MemoryStream(ArrayHelper.Empty<byte>()));
                 await reader.ReadLineAsync();
             }
         }
@@ -875,7 +874,7 @@ namespace NLog.UnitTests.LayoutRenderers
 
         private async Task AsyncMethod3a(LogFactory logFactory)
         {
-            var reader = new StreamReader(new MemoryStream(new byte[0]));
+            var reader = new StreamReader(new MemoryStream(ArrayHelper.Empty<byte>()));
             await reader.ReadLineAsync();
             AsyncMethod3b(logFactory);
         }
@@ -890,7 +889,7 @@ namespace NLog.UnitTests.LayoutRenderers
         {
             public async Task AsyncMethod3a(LogFactory logFactory)
             {
-                var reader = new StreamReader(new MemoryStream(new byte[0]));
+                var reader = new StreamReader(new MemoryStream(ArrayHelper.Empty<byte>()));
                 await reader.ReadLineAsync();
                 AsyncMethod3b(logFactory);
             }
@@ -1163,7 +1162,7 @@ namespace NLog.UnitTests.LayoutRenderers
             WriteLogMessage(logger);
             logFactory.Flush();
             logMessage = target.Logs[2];
-            Assert.Contains("ThreadId=" + Thread.CurrentThread.ManagedThreadId.ToString(), logMessage);
+            Assert.Contains("ThreadId=" + CurrentManagedThreadId.ToString(), logMessage);
 
             // See that interface logging also works (Improve support for Microsoft.Extension.Logging.ILogger replacement)
             INLogLogger ilogger = logger;

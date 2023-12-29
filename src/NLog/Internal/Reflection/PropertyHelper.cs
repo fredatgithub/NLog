@@ -89,19 +89,21 @@ namespace NLog.Internal
             try
             {
                 var propertyType = Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType;
-
-                if (!TryNLogSpecificConversion(propertyType, stringValue, configurationItemFactory, out propertyValue))
+                if (ReferenceEquals(propertyType, propInfo.PropertyType) || !StringHelpers.IsNullOrWhiteSpace(stringValue))
                 {
-                    if (propInfo.IsDefined(_arrayParameterAttribute.GetType(), false))
+                    if (!TryNLogSpecificConversion(propertyType, stringValue, configurationItemFactory, out propertyValue))
                     {
-                        throw new NotSupportedException($"'{targetObject?.GetType()?.Name}' cannot assign property '{propInfo.Name}', because property of type array and not scalar value: '{stringValue}'.");
-                    }
+                        if (propInfo.IsDefined(_arrayParameterAttribute.GetType(), false))
+                        {
+                            throw new NotSupportedException($"'{targetObject?.GetType()?.Name}' cannot assign property '{propInfo.Name}', because property of type array and not scalar value: '{stringValue}'.");
+                        }
 
-                    if (!(TryGetEnumValue(propertyType, stringValue, out propertyValue)
-                        || TryImplicitConversion(propertyType, stringValue, out propertyValue)
-                        || TryFlatListConversion(targetObject, propInfo, stringValue, configurationItemFactory, out propertyValue)
-                        || TryTypeConverterConversion(propertyType, stringValue, out propertyValue)))
-                        propertyValue = Convert.ChangeType(stringValue, propertyType, CultureInfo.InvariantCulture);
+                        if (!(TryGetEnumValue(propertyType, stringValue, out propertyValue)
+                            || TryImplicitConversion(propertyType, stringValue, out propertyValue)
+                            || TryFlatListConversion(targetObject, propInfo, stringValue, configurationItemFactory, out propertyValue)
+                            || TryTypeConverterConversion(propertyType, stringValue, out propertyValue)))
+                            propertyValue = Convert.ChangeType(stringValue, propertyType, CultureInfo.InvariantCulture);
+                    }
                 }
             }
             catch (Exception ex)
@@ -169,7 +171,7 @@ namespace NLog.Internal
         [Obsolete("Instead use RegisterType<T>, as dynamic Assembly loading will be moved out. Marked obsolete with NLog v5.2")]
         private static bool TryGetPropertyInfo(object obj, string propertyName, out PropertyInfo result)
         {
-            InternalLogger.Debug("Object reflection needed for unknown type: {0} (Lookup property={1})", obj.GetType(), propertyName);
+            InternalLogger.Debug("Object reflection needed to configure instance of type: {0} (Lookup property={1})", obj.GetType(), propertyName);
 
             PropertyInfo propInfo = obj.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
             if (propInfo != null)
@@ -193,14 +195,8 @@ namespace NLog.Internal
             if (type is null || IsSimplePropertyType(type))
                 return false;
 
-            if (typeof(LayoutRenderers.LayoutRenderer).IsAssignableFrom(type))
-                return true;
-
-            if (typeof(Layout).IsAssignableFrom(type))
-                return true;
-
-            if (typeof(Target).IsAssignableFrom(type))
-                return true;
+            if (typeof(ISupportsInitialize).IsAssignableFrom(type))
+                return true;    // Target, Layout, LayoutRenderer
 
             if (typeof(IEnumerable).IsAssignableFrom(type))
                 return true;
@@ -210,7 +206,6 @@ namespace NLog.Internal
 
         internal static Dictionary<string, PropertyInfo> GetAllConfigItemProperties(ConfigurationItemFactory configFactory, Type type)
         {
-            // NLog will ignore all properties marked with NLogConfigurationIgnorePropertyAttribute
             return TryLookupConfigItemProperties(configFactory, type) ?? new Dictionary<string, PropertyInfo>();
         }
 
@@ -218,7 +213,6 @@ namespace NLog.Internal
         {
             lock (_parameterInfoCache)
             {
-                // NLog will ignore all properties marked with NLogConfigurationIgnorePropertyAttribute
                 if (!_parameterInfoCache.TryGetValue(type, out var cache))
                 {
                     if (TryCreatePropertyInfoDictionary(configFactory, type, out cache))
@@ -240,7 +234,8 @@ namespace NLog.Internal
             foreach (var configProp in GetAllConfigItemProperties(configFactory, o.GetType()))
             {
                 var propInfo = configProp.Value;
-                if (propInfo.PropertyType?.IsClass() == true)
+                var propertyType = propInfo.PropertyType;
+                if (propertyType != null && (propertyType.IsClass() || Nullable.GetUnderlyingType(propertyType) != null))
                 {
                     if (propInfo.IsDefined(_requiredParameterAttribute.GetType(), false))
                     {
@@ -341,13 +336,12 @@ namespace NLog.Internal
                 // Note: .NET Standard 2.1 added a public Enum.TryParse(Type)
                 try
                 {
-                    result = Enum.Parse(resultType, value, true) as Enum;
+                    result = (Enum)Enum.Parse(resultType, value, true);
                     return true;
                 }
-                catch (ArgumentException)
+                catch (ArgumentException ex)
                 {
-                    result = null;
-                    return false;
+                    throw new ArgumentException($"Failed parsing Enum {resultType.Name} from value: {value}", ex);
                 }
             }
             else
@@ -548,7 +542,7 @@ namespace NLog.Internal
 
             try
             {
-                if (!objectType.IsDefined(_configPropertyAttribute.GetType(), true))
+                if (!typeof(ISupportsInitialize).IsAssignableFrom(objectType) && !objectType.IsDefined(_configPropertyAttribute.GetType(), true))
                 {
                     return false;
                 }
@@ -617,7 +611,8 @@ namespace NLog.Internal
 
             try
             {
-                if (propInfo?.PropertyType is null)
+                var propertyType = propInfo?.PropertyType;
+                if (propertyType is null)
                     return false;
 
                 if (checkDefaultValue && propInfo.IsDefined(_defaultParameterAttribute.GetType(), false))
@@ -626,22 +621,16 @@ namespace NLog.Internal
                     return true;
                 }
 
-                if (IsSimplePropertyType(propInfo.PropertyType))
+                if (IsSimplePropertyType(propertyType))
                     return true;
 
-                if (typeof(LayoutRenderers.LayoutRenderer).IsAssignableFrom(propInfo.PropertyType))
-                    return true;
-
-                if (typeof(Layout).IsAssignableFrom(propInfo.PropertyType))
-                    return true;
-
-                if (typeof(Target).IsAssignableFrom(propInfo.PropertyType))
-                    return true;
+                if (typeof(ISupportsInitialize).IsAssignableFrom(propertyType))
+                    return true;    // Target, Layout, LayoutRenderer
 
                 if (propInfo.IsDefined(_ignorePropertyAttribute.GetType(), false))
-                    return false;
+                    return false;   // NLog will ignore all properties marked with NLogConfigurationIgnorePropertyAttribute
 
-                if (typeof(IEnumerable).IsAssignableFrom(propInfo.PropertyType))
+                if (typeof(IEnumerable).IsAssignableFrom(propertyType))
                 {
                     var arrayParameterAttribute = propInfo.GetFirstCustomAttribute<ArrayParameterAttribute>();
                     if (arrayParameterAttribute != null)

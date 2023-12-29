@@ -41,6 +41,19 @@ namespace NLog.Config
         public static void RegisterTypes(ConfigurationItemFactory factory)
         {
             #pragma warning disable CS0618 // Type or member is obsolete
+            factory.RegisterTypeProperties<NLog.Targets.TargetWithContext.TargetWithContextLayout>(() => null);
+            factory.RegisterTypeProperties<NLog.Layouts.CsvLayout.CsvHeaderLayout>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionAndExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionExceptionExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionLayoutExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionLevelExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionLiteralExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionLoggerNameExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionMessageExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionMethodExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionNotExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionOrExpression>(() => null);
+            factory.RegisterTypeProperties<NLog.Conditions.ConditionRelationalExpression>(() => null);
             factory.RegisterType<NLog.Config.LoggingRule>();
             factory.FilterFactory.RegisterType<NLog.Filters.ConditionBasedFilter>("when");
             factory.FilterFactory.RegisterType<NLog.Filters.WhenContainsFilter>("whenContains");
@@ -74,6 +87,7 @@ namespace NLog.Config
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.ExceptionDataLayoutRenderer>("exception-data");
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.ExceptionLayoutRenderer>("exception");
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.FileContentsLayoutRenderer>("file-contents");
+            factory.RegisterTypeProperties<NLog.LayoutRenderers.FuncThreadAgnosticLayoutRenderer>(() => null);
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.GarbageCollectorInfoLayoutRenderer>("gc");
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.GdcLayoutRenderer>("gdc");
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.GuidLayoutRenderer>("guid");
@@ -85,6 +99,7 @@ namespace NLog.Config
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.LevelLayoutRenderer>("level");
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.LevelLayoutRenderer>("loglevel");
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.LiteralLayoutRenderer>("literal");
+            factory.RegisterTypeProperties<NLog.LayoutRenderers.LiteralWithRawValueLayoutRenderer>(() => null);
 #if !NETSTANDARD1_3 && !NETSTANDARD1_5
             factory.LayoutRendererFactory.RegisterType<NLog.LayoutRenderers.LocalIpAddressLayoutRenderer>("local-ip");
 #endif
@@ -247,6 +262,7 @@ namespace NLog.Config
             factory.TargetFactory.RegisterType<NLog.Targets.Wrappers.FallbackGroupTarget>("FallbackGroup");
             factory.RegisterType<NLog.Targets.Wrappers.FilteringRule>();
             factory.TargetFactory.RegisterType<NLog.Targets.Wrappers.FilteringTargetWrapper>("FilteringWrapper");
+            factory.TargetFactory.RegisterType<NLog.Targets.Wrappers.GroupByTargetWrapper>("GroupByWrapper");
             factory.TargetFactory.RegisterType<NLog.Targets.Wrappers.LimitingTargetWrapper>("LimitingWrapper");
             factory.TargetFactory.RegisterType<NLog.Targets.Wrappers.PostFilteringTargetWrapper>("PostFilteringWrapper");
             factory.TargetFactory.RegisterType<NLog.Targets.Wrappers.RandomizeGroupTarget>("RandomizeGroup");
@@ -258,6 +274,19 @@ namespace NLog.Config
             factory.TimeSourceFactory.RegisterType<NLog.Time.AccurateUtcTimeSource>("AccurateUTC");
             factory.TimeSourceFactory.RegisterType<NLog.Time.FastLocalTimeSource>("FastLocal");
             factory.TimeSourceFactory.RegisterType<NLog.Time.FastUtcTimeSource>("FastUTC");
+            factory.ConditionMethodFactory.RegisterOneParameter("length", (logEvent,arg1) => NLog.Conditions.ConditionMethods.Length(arg1?.ToString()));
+            factory.ConditionMethodFactory.RegisterTwoParameters("equals", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.Equals2(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterTwoParameters("strequals", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.Equals2(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("strequals", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.Equals2(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("contains", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.Contains(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("contains", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.Contains(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("starts-with", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.StartsWith(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("starts-with", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.StartsWith(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("ends-with", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.EndsWith(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("ends-with", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.EndsWith(arg1?.ToString(), arg2?.ToString(), arg3 is bool ignoreCase ? ignoreCase : true));
+            factory.ConditionMethodFactory.RegisterTwoParameters("regex-matches", (logEvent,arg1,arg2) => NLog.Conditions.ConditionMethods.RegexMatches(arg1?.ToString(), arg2?.ToString()));
+            factory.ConditionMethodFactory.RegisterThreeParameters("regex-matches", (logEvent,arg1,arg2,arg3) => NLog.Conditions.ConditionMethods.RegexMatches(arg1?.ToString(), arg2?.ToString(), arg3?.ToString() ?? string.Empty));
+
             #pragma warning restore CS0618 // Type or member is obsolete
         }
     }
